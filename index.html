@@ -185,7 +185,7 @@
 
       <div class="pill" id="status">
         <span class="dot"></span>
-        <span>Marca amarilla = “cara” de la Luna (para ver qué mira hacia la Tierra).</span>
+        <span>Marca amarilla = punto fijo en la superficie de la Luna.</span>
       </div>
     </div>
   </div>
@@ -296,15 +296,19 @@
     ctx.arc(mx, my, moonR, 0, Math.PI * 2);
     ctx.clip();
 
+    // Rotar la textura lunar a la misma velocidad que el punto amarillo
+    ctx.translate(mx, my);
+    ctx.rotate(thetaSpin);
     ctx.drawImage(
       imgMoon,
-      mx - moonR,
-      my - moonR,
+      -moonR,
+      -moonR,
       moonR * 2,
       moonR * 2
-    );
+);
 
-    ctx.restore();
+ctx.restore();
+
 
     // Borde
     ctx.beginPath();
