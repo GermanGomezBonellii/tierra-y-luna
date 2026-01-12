@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Tierra–Luna: traslación vs rotación</title>
+  <style>
+    :root{
+      --bg:#070812;
+      --panel:#0f1224;
+      --text:#e9ecff;
+      --muted:#aab0d6;
+      --stroke: rgba(255,255,255,.18);
+      --orbit: rgba(255,255,255,.12);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 50% 35%, #11163a 0%, var(--bg) 55%, #04040a 100%);
+      color:var(--text);
+      display:flex;
+      min-height:100vh;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .wrap{
+      width:min(980px, 100%);
+      display:grid;
+      grid-template-columns: 1.3fr 0.7fr;
+      gap:18px;
+      align-items:stretch;
+    }
+    @media (max-width: 860px){
+      .wrap{grid-template-columns:1fr}
+    }
+    .stage{
+      background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:14px;
+      position:relative;
+      overflow:hidden;
+      box-shadow: 0 16px 40px rgba(0,0,0,.45);
+    }
+    canvas{
+      width:100%;
+      height:auto;
+      display:block;
+      border-radius:12px;
+      background: radial-gradient(900px 520px at 55% 35%, rgba(255,255,255,.07), rgba(255,255,255,0) 58%);
+    }
+    .hud{
+      position:absolute;
+      left:18px;
+      top:16px;
+      padding:10px 12px;
+      border-radius:12px;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      backdrop-filter: blur(8px);
+      font-size:13px;
+      line-height:1.3;
+    }
+    .hud b{font-weight:700}
+    .panel{
+      background: rgba(15,18,36,.72);
+      border:1px solid var(--stroke);
+      border-radius:16px;
+      padding:16px;
+      box-shadow: 0 16px 40px rgba(0,0,0,.35);
+    }
+    h1{
+      margin:0 0 10px;
+      font-size:18px;
+      font-weight:750;
+      letter-spacing:.2px;
+    }
+    p{
+      margin:0 0 14px;
+      color:var(--muted);
+      font-size:13.5px;
+      line-height:1.45;
+    }
+    .control{
+      margin:14px 0 16px;
+      padding:12px;
+      border-radius:14px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+    }
+    .control .top{
+      display:flex;
+      align-items:baseline;
+      justify-content:space-between;
+      gap:10px;
+      margin-bottom:8px;
+    }
+    .label{
+      font-size:13px;
+      font-weight:700;
+    }
+    .value{
+      font-size:13px;
+      color:var(--text);
+      opacity:.95;
+      font-variant-numeric: tabular-nums;
+      white-space:nowrap;
+    }
+    input[type="range"]{
+      width:100%;
+      accent-color:#c7c9ff;
+    }
+    .row{
+      display:flex;
+      gap:10px;
+      margin-top:10px;
+      flex-wrap:wrap;
+    }
+    button{
+      cursor:pointer;
+      border-radius:12px;
+      padding:10px 12px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      color:var(--text);
+      font-weight:650;
+    }
+    button:hover{background: rgba(255,255,255,.10)}
+    .pill{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.25);
+      color:var(--muted);
+      font-size:12.5px;
+      margin-top:10px;
+    }
+    .dot{
+      width:10px;height:10px;border-radius:50%;
+      background:#ffd56b;
+      box-shadow:0 0 14px rgba(255,213,107,.55);
+      flex:0 0 auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="stage">
+      <canvas id="c" width="760" height="520" aria-label="Simulación Tierra-Luna"></canvas>
+    </div>
+
+    <div class="panel">
+      <h1>Traslación vs rotación de la Luna</h1>
+      <p>
+        Ajustá los períodos. Cuando el <b>período de rotación</b> (spin) coincide con el <b>período de traslación</b> (órbita),
+        se observa el <b>bloqueo de marea</b>: desde la Tierra, la Luna muestra siempre la misma cara.
+      </p>
+
+      <div class="control">
+        <div class="top">
+          <div class="label">Velocidad de traslación (órbita)</div>
+          <div class="value"><span id="orbVal"></span> vueltas/s</div>
+        </div>
+        <input id="orb" type="range" min="0.02" max="0.30" step="0.01" value="0.10" />
+      </div>
+
+      <div class="control">
+        <div class="top">
+          <div class="label">Velocidad de rotación (spin)</div>
+          <div class="value"><span id="spinVal"></span> vueltas/s</div>
+        </div>
+        <input id="spin" type="range" min="0.02" max="0.30" step="0.01" value="0.10" />
+      </div>
+
+      <div class="row">
+        <button id="sync">Igualar (rotación = traslación)</button>
+        <button id="reset">Reset</button>
+        <button id="pause">Pausar</button>
+      </div>
+
+      <div class="pill" id="status">
+        <span class="dot"></span>
+        <span>Marca amarilla = “cara” de la Luna (para ver qué mira hacia la Tierra).</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // Cargar imágenes
+  const imgEarth = new Image();
+  imgEarth.src = "tierra.png";
+
+  const imgMoon = new Image();
+  imgMoon.src = "luna.png";
+
+  const canvas = document.getElementById("c");
+  const ctx = canvas.getContext("2d");
+
+  const orb = document.getElementById("orb");
+  const spin = document.getElementById("spin");
+  const orbVal = document.getElementById("orbVal");
+  const spinVal = document.getElementById("spinVal");
+
+  const btnSync = document.getElementById("sync");
+  const btnReset = document.getElementById("reset");
+  const btnPause = document.getElementById("pause");
+
+  let paused = false;
+
+  // Parámetros visuales
+  const W = canvas.width, H = canvas.height;
+  const center = { x: W * 0.50, y: H * 0.50 };
+
+  const earthR = 75;
+  const moonR  = 30;
+  const orbitR = 210;
+
+  // Estado físico (ángulos)
+  let thetaOrbit = 0;  // ángulo orbital (rad)
+  let thetaSpin  = 0;  // ángulo de rotación de la Luna (rad)
+
+  // Control del tiempo
+  let last = performance.now();
+
+  function fmt(x){ return Number(x).toFixed(1); }
+
+  function updateUI(){
+    orbVal.textContent  = fmt(orb.value);
+    spinVal.textContent = fmt(spin.value);
+
+    const Torb = parseFloat(orb.value);
+    const Tspin = parseFloat(spin.value);
+    const ratio = Tspin / Torb;
+  }
+
+  function drawStars(){
+    // fondo con “estrellas” determinísticas
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    for(let i=0;i<140;i++){
+      const x = (i*73 % W) + ((i%7)*3);
+      const y = (i*131 % H) + ((i%11)*2);
+      const r = (i%5===0) ? 1.6 : 1.0;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI*2);
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawEarth(){
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, earthR, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.drawImage(
+      imgEarth,
+      center.x - earthR,
+      center.y - earthR,
+      earthR * 2,
+      earthR * 2
+    );
+
+    ctx.restore();
+
+    // Borde sutil
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, earthR, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+
+  function drawOrbit(){
+    ctx.beginPath();
+    ctx.arc(center.x, center.y, orbitR, 0, Math.PI*2);
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+    function drawMoon(mx, my){
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(mx, my, moonR, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.drawImage(
+      imgMoon,
+      mx - moonR,
+      my - moonR,
+      moonR * 2,
+      moonR * 2
+    );
+
+    ctx.restore();
+
+    // Borde
+    ctx.beginPath();
+    ctx.arc(mx, my, moonR, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+
+    // Marca de la "cara" de la Luna
+    const markR = moonR * 0.78;
+    const px = mx + markR * Math.cos(thetaSpin);
+    const py = my + markR * Math.sin(thetaSpin);
+
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffd56b";
+    ctx.shadowColor = "rgba(255,213,107,0.6)";
+    ctx.shadowBlur = 14;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawStars();
+    drawOrbit();
+    drawEarth();
+
+    // Posición orbital de la Luna
+    const mx = center.x + orbitR * Math.cos(thetaOrbit);
+    const my = center.y + orbitR * Math.sin(thetaOrbit);
+
+    drawMoon(mx, my);
+  }
+
+  function step(now){
+    const dt = Math.min(0.05, (now - last) / 1000); // seconds (cap para estabilidad)
+    last = now;
+
+    if(!paused){
+      const vOrbit = parseFloat(orb.value);   // vueltas por segundo
+      const vSpin  = parseFloat(spin.value);  // vueltas por segundo
+
+      // Velocidades angulares: ω = 2π * (vueltas/seg)
+      const wOrbit = (2*Math.PI) * vOrbit;
+      const wSpin  = (2*Math.PI) * vSpin;
+
+
+      thetaOrbit += wOrbit * dt;
+
+      // Para que el “bloqueo de marea” sea evidente:
+      // la orientación absoluta del marcador en el espacio depende del spin,
+      // pero lo que importa es el relativo respecto a la línea Tierra->Luna.
+      //
+      // Aquí hacemos rotar la Luna en el marco inercial (thetaSpin), y como la Luna
+      // se mueve orbitalmente (thetaOrbit), el ángulo que “mira” a la Tierra cambia.
+      // Si wSpin == wOrbit, entonces thetaSpin - thetaOrbit queda constante => misma cara.
+      thetaSpin += wSpin * dt;
+    }
+
+    // Normalizar para que no crezcan indefinidamente
+    const twoPi = 2*Math.PI;
+    thetaOrbit = ((thetaOrbit % twoPi) + twoPi) % twoPi;
+    thetaSpin  = ((thetaSpin  % twoPi) + twoPi) % twoPi;
+
+    updateUI();
+    draw();
+    requestAnimationFrame(step);
+  }
+
+  // Interacciones
+  orb.addEventListener("input", updateUI);
+  spin.addEventListener("input", updateUI);
+
+  btnSync.addEventListener("click", () => {
+    spin.value = orb.value;
+    updateUI();
+  });
+
+  btnReset.addEventListener("click", () => {
+    orb.value = 10;
+    spin.value = 10;
+    thetaOrbit = 0;
+    thetaSpin = 0;
+    paused = false;
+    btnPause.textContent = "Pausar";
+    updateUI();
+  });
+
+  btnPause.addEventListener("click", () => {
+    paused = !paused;
+    btnPause.textContent = paused ? "Reanudar" : "Pausar";
+  });
+
+  updateUI();
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
