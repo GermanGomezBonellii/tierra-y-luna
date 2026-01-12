@@ -199,6 +199,10 @@
   const imgMoon = new Image();
   imgMoon.src = "luna.png";
 
+  const imgTide = new Image();
+  imgTide.src = "marea.png";
+
+
   const canvas = document.getElementById("c");
   const ctx = canvas.getContext("2d");
 
@@ -242,7 +246,7 @@
   function drawStars(){
     // fondo con “estrellas” determinísticas
     ctx.save();
-    ctx.globalAlpha = 0.55;
+    ctx.globalAlpha = 0.35;
     for(let i=0;i<140;i++){
       const x = (i*73 % W) + ((i%7)*3);
       const y = (i*131 % H) + ((i%11)*2);
@@ -280,6 +284,28 @@
     ctx.stroke();
   }
 
+  function drawTide(angleToMoon){
+    // Tamaño del "óvalo" de marea alrededor de la Tierra                 
+    const tideR = earthR * 1.45;
+
+    ctx.save();
+
+    // Centrar en la Tierra
+    ctx.translate(center.x, center.y);
+
+    // Rotar para que "arriba" apunte hacia la Luna.
+    // En canvas, "arriba" de una imagen corresponde al eje -Y.
+    // La dirección a la Luna con thetaOrbit apunta al eje +X cuando thetaOrbit=0.
+    // Por eso usamos (thetaOrbit - π/2).
+    ctx.rotate(angleToMoon - Math.PI / 2 + Math.PI);
+
+    // Dibujar la imagen centrada
+    ctx.globalAlpha = 0.55;                // transparencia para que no tape todo
+    ctx.drawImage(imgTide, -tideR, -tideR, tideR * 2, tideR * 2);
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+  }
 
   function drawOrbit(){
     ctx.beginPath();
@@ -336,6 +362,7 @@ ctx.restore();
     ctx.clearRect(0,0,W,H);
     drawStars();
     drawOrbit();
+    drawTide(thetaOrbit);
     drawEarth();
 
     // Posición orbital de la Luna
@@ -390,8 +417,8 @@ ctx.restore();
   });
 
   btnReset.addEventListener("click", () => {
-    orb.value = 10;
-    spin.value = 10;
+    orb.value = 0.30;
+    spin.value = 0.30;
     thetaOrbit = 0;
     thetaSpin = 0;
     paused = false;
